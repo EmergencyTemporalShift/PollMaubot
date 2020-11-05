@@ -7,7 +7,7 @@ from maubot import Plugin, MessageEvent
 from maubot.handlers import command
 
 
-QUOTES_REGEX = r"\"?\s*?\""  # Regex to split string between quotes
+QUOTES_REGEX = r"[\"“”„«»]?\s*?[\"“”„«»]"  # Regex to split string between quotes, it also secretly matches other quote forms in case they are easier to type
 # [Thumbs Up, Thumbs Down, Grinning, Ghost, Robot, Okay Hand, Clapping Hands, Hundred]
 REACTIONS = ["\U0001F44D", "\U0001F44E", "\U0001F600", "\U0001F47B", "\U0001F916", "\U0001F44C", "\U0001F44F", "\U0001F4AF"]
 
@@ -76,18 +76,25 @@ class PollPlugin(Plugin):
         setup = [
             s for s in r.split(poll_setup) if s != ""
         ]  # Split string between quotes
-        question = setup[0]
-        choices = setup[1 : len(setup)]
-        if len(choices) <= 1:
-            response = "You need to enter at least 2 choices."
+        #self.log.debug("setup: "+str(setup))
+        if len(setup) == 0:
+            response = "You need to put a question and at least two choices. See help."
+        elif len(setup) < 2:
+            response = "You need to enter at least two choices. See help."
         else:
+            question = setup[0]
+            choices = setup[1 : len(setup)]
+
             self.currentPolls[evt.room_id] = Poll(question, choices)
             # Show users active poll
             choice_list = "<br />".join(
                 [f"{self.currentPolls[evt.room_id].emojis[i]} - {choice}" for i, choice in enumerate(choices)]
             )
             response = f"{question}<br />{choice_list}"
-        self.currentPolls[evt.room_id].event_id = await evt.reply(response, allow_html=True)
+        if evt.room_id in self.currentPolls:
+            self.currentPolls[evt.room_id].event_id = await evt.reply(response, allow_html=True)
+        else:
+            await evt.reply(response, allow_html=True)
 
     @poll.subcommand("results", help="Prints out the current results of the poll")
     async def handler(self, evt: MessageEvent) -> None:
